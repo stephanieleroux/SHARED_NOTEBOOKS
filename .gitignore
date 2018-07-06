@@ -1,0 +1,3 @@
+# ignore generated html files,
+.ipynb_checkpoints/*
+wip*.ipynb

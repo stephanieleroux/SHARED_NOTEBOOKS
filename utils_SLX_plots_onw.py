@@ -60,6 +60,23 @@ def make_NCLcolormap(reverse=False):
 
     return(my_cmap_NCLbipo)
 
+def make_NCLcolormapNOWI(reverse=False):
+    ''' Define a custom cmap from NCL bipolar cmap.
+    Parameters: 
+    * Reverse (default=False). If true, will  create the reverse colormap
+    ''' 
+
+    ### colors to include in my custom colormap
+    colors_NCLbipo=[(11,76,95),(0,97,128),(0,161,191),(0,191,224),(0,250,250),(102,252,252),(153,250,250),(255,255,255),(252,224,0),(252,191,0),(252,128,0),(252,64,0),(252,33,0),(128,0,0),(0,0,0)]
+
+    ### Call the function make_cmap which returns my colormap
+    my_cmap_NCLbipo = make_cmap(colors_NCLbipo[:], bit=True)
+    my_cmap_NCLbipo_r = make_cmap(colors_NCLbipo[::-1], bit=True)
+    
+    if reverse==True:
+        my_cmap_NCLbipo = my_cmap_NCLbipo_r
+
+    return(my_cmap_NCLbipo)
     
 def showcmap(cmap):  
         ''' Just make a color plot of random matrix to show the cmap colormap given as argument.
@@ -77,28 +94,29 @@ def showcmap(cmap):
 
 
 
-def plotmap(fig1,ehonan,nav_lon,nav_lat,cm_base='viridis',plto='tmp_plot',vmin='0',vmax='0',Nincr=10,typlo='contourf',Nbar=10,glo=True,coastL=False,coastC=False,xlim=(0,10),ylim=(0,10),su='b',so='k',loncentr=0.,latcentr=0.,labelplt="",gloproj='Robinson'):
+def plotmap(fig1,ehonan,nav_lon,nav_lat,plto='tmp_plot',cm_base='viridis',vmin='0',vmax='0',Nincr=10,levmode='opt',typlo='contourf',Nbar=10,glo=True,coastL=False,coastC=False,coastLand=False,xlim=(0,10), ylim=(0,10),su='b',so='k',loncentr=0.,latcentr=0.,labelplt="",gloproj='Robinson',incrgridlon=20,incrgridlat=20,edgcol1='#585858',edgcol2='w',mk="o",mks=0.1,scattcmap=True,scattco='k'):
         '''
         PURPOSE: Plot regional or global map of gridded data (shading).
         Uses Cartopy, xarray, matplotlib, numpy.
         
         ARGUMENTS: 
         fig1: fig id,
-        ehonan: 2-d array to plot (geographical data)
-        nav_lon: corresponding lon array . Works with lat and lon given as 1-d vectors (if regular grid such as DREAM model) or 2-d arrays (unregular grid such as the ORCA-NEMO-grid)
+        ehonan: 2-d array (xarray or np.array of 2 dims) to plot (geographical data)
+        nav_lon: corresponding lon array . Works with lat and lon given as 1-d vectors (if regular grid such as DREAM model) 
+                or 2-d arrays (unregular grid such as the ORCA-NEMO-grid)
         nav_lat: corresponding lat array
         
-        OPTIONS: (Note that you can omit these options when calling the plot function and in this case defaut values are applied.)
+        OPTIONS: (Note that you can ommit these options when calling the plot function and in this case defaut values are applied. Note also that t
+        he order in which he options are given does no matter.)
         - cm_base: colormap (defaut=cm.viridis)
         - plto: plo name (defaut='tmpplot')
         - vmin: data min value to plot (color shading) (defaut vmin='0')
         - vmax: data max value to plot (color shading) (defaut vmax='0')
         - Nincr: number of color segments of the colormap (defaut Nincr=10)
         - typlo: type of plot (can be 'contourf', 'pcolormesh' or 'scatter', defaut is contourf, 'scater is not yet fully implemented')
-typlo:='contourf'
- : True or False. Type of plotting function (if false then contourf is used)
         - Nbar: number of labels on the colorbar (defaut Nbar=10)
         - glo: global=True (default) sets that  map is global (the projection will be Robinson in nthat case). It is PlateCarre if regional map.
+        - gloproj: Projection if global plot. Can be 'Robinson' (defaut) or 'Orthographic' or PlateCarree.
         - coastL: set to True  to plot continents as lines (defaut is False)
         - coastC: set to True to fill continents with colors
         - xlim: set regional limits in longitude (degrees) if glo==False (default xlim=(0,10))
@@ -107,6 +125,12 @@ typlo:='contourf'
         - so: set the color of the values over vmax (appears as a triangle at the edge of the colorbar). Defaut is 'k' black.
         - loncentr: longitude to center the map projectionn (defaut is 0).
         - labelplt: label of the colorbar (defaut is nothing)
+        - edgcol1: color of the line around the global proj, defaut is '#585858'
+        - edgcol2: color of the frame around the regional map, defaut is 'w'
+        - mk: marker type, defaut is "o"
+        - mks: marker size inn case of scatter plot. Defaut is 0.1
+        - scattcmap: Can be used to switch off the colorbar. Also, in scatterplot mode, if True scatterplot will be plotted with ehonan values and cmap colormap. If False, scatterplot will be plotted wih a uniform color scattco (defaut is True)
+        - scattco: "color of the scatter points in case scattcmap is False.
         
         LEFT-TO-DO:
         * Some color choices (for gridlines, for labels, for continents) are still coded in hard below. 
@@ -140,8 +164,14 @@ typlo:='contourf'
         if ((vmin==0)&(vmax==0)):
             levels = mticker.MaxNLocator(nbins=Nincr).tick_values(ehonan.min(), ehonan.max())        
         else:
-            levels = mticker.MaxNLocator(nbins=Nincr).tick_values(vmin, vmax)
+            if levmode=="opt":
+                    levels = mticker.MaxNLocator(nbins=Nincr).tick_values(vmin, vmax)
+            if levmode=="lin":
+                    levels=np.linspace(vmin,vmax,Nincr)
         norm   = mcolors.BoundaryNorm(levels, ncolors=cmap.N,clip=True)
+        
+        
+        
         
         # Projection
         trdata  = ccrs.PlateCarree() 
@@ -153,39 +183,44 @@ typlo:='contourf'
                 ax = plt.axes(projection=ccrs.Robinson(central_longitude=loncentr))
             if gloproj=='Orthographic':
                 ax = plt.axes(projection=ccrs.Orthographic(central_longitude=loncentr,central_latitude=latcentr))
-            # marker size
-            sm=0.1
+            if gloproj=='PlateCarree':
+                ax = plt.axes(projection=ccrs.PlateCarree(central_longitude=loncentr))
+            if gloproj=='Mollweide':
+                ax = plt.axes(projection=ccrs.Mollweide(central_longitude=loncentr))                      
         else:
             ax = plt.axes(projection= ccrs.PlateCarree())
-            # marker size
-            sm=0.5
         
         if glo:
             ax.set_global() 
             
         if glo:
-            ax.outline_patch.set_edgecolor('#585858')
+            ax.outline_patch.set_edgecolor(edgcol1)
         else:
-            ax.outline_patch.set_edgecolor('white')
+            ax.outline_patch.set_edgecolor(edgcol2)
             
 
         # grid on map
         if glo:
             gl = ax.gridlines(linewidth=1, color='#585858', alpha=0.2, linestyle='--') 
+            label_style = {'size': 12}
+            gl.xlabel_style = label_style
+            gl.ylabel_style = label_style
         else:
             gl = ax.gridlines(draw_labels=True,linewidth=1, color='#585858', alpha=0.2, linestyle='--')
             # grid labels
             label_style = {'size': 12, 'color': 'black', 'weight': 'bold'}
             gl.xlabel_style = label_style
             gl.xlabels_bottom = False
-            gl.xlocator = mticker.FixedLocator(np.arange(-180,180,20,dtype=float))
+            gl.xlocator = mticker.FixedLocator(np.arange(-180,180,incrgridlon,dtype=float))
             gl.ylabel_style = label_style
             gl.ylabels_right = False
-            gl.ylocator = mticker.FixedLocator(np.arange(-90,90,20,dtype=float))
+            gl.ylocator = mticker.FixedLocator(np.arange(-90,90,incrgridlat,dtype=float))
        
         # Add Coastlines and or plain continents
         if coastC:
-            ax.add_feature(ccf.LAND, facecolor='#585858', edgecolor='none')
+            ax.add_feature(ccf.COASTLINE, facecolor='k', edgecolor='none')
+        if coastLand:
+            ax.add_feature(ccf.LAND, facecolor='k', edgecolor='none')
         if coastL:
             ax.coastlines(color='#585858')
         
@@ -198,8 +233,12 @@ typlo:='contourf'
             cs  = plt.contourf(nav_lon, nav_lat, ehonan,transform=trdata,levels=levels,norm=norm,cmap=cmap,extend='both')
 
         if typlo=='scatter':
-            print('Sorry, not implemented yet. Will be soon.')
-            return
+            if scattcmap:
+                cs = plt.scatter(nav_lon, nav_lat, s=mks, marker=mk, c=ehonan, cmap=cmap,transform=trdata,norm=norm,vmin=vmin,vmax=vmax)
+            else:
+                cs  = plt.scatter(nav_lon, nav_lat, s=mks, marker=mk, color=scattco,transform=trdata)
+
+        
 
         if glo==False:
             #limits
@@ -207,13 +246,14 @@ typlo:='contourf'
             plt.ylim(ylim) 
 
         # plot colorbar
-        cb = plt.colorbar(cs, extend='both',  pad=0.04, orientation='horizontal', shrink=0.75)
-        cb.ax.tick_params(labelsize=15) 
-        cb.set_label(labelplt,size=15)
-        ticks = np.linspace(levels.min(),levels.max(),Nbar)
-        cb.set_ticks(ticks)
-        new_tickslabels = ["%.2f" % i for i in ticks]
-        cb.set_ticklabels(new_tickslabels)
+        if scattcmap:
+            cb = plt.colorbar(cs, extend='both',  pad=0.04, orientation='horizontal', shrink=0.75)
+            cb.ax.tick_params(labelsize=15) 
+            cb.set_label(labelplt,size=15)
+            ticks = np.linspace(levels.min(),levels.max(),Nbar)
+            cb.set_ticks(ticks)
+            new_tickslabels = ["%.3f" % i for i in ticks]
+            cb.set_ticklabels(new_tickslabels)
 
         
 def printdatestring(time,it):

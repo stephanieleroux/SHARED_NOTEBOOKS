@@ -5,8 +5,8 @@
 #SBATCH --nodes=1
 #SBATCH --ntasks=10
 #SBATCH --time=05:00:00           
-#SBATCH -A cli@cpu
-
+#SBATCH -A fortran
+#SBATCH --mem=5000                 # memory = 5Gb
 
 # Purpose: compute the ensemble statistics from the IMHOTEP ensemble based on the cdftool cdfenstat
 
